@@ -11,8 +11,15 @@ const app = express();
 // Middlewares
 app.use(express.json());
 app.use(cors({
-  origin: config.frontend_url,
-  credentials: true
+  origin: [
+    config.frontend_url,
+    'https://reparateur-fitness.vercel.app',
+    'https://reparateur-fitness-git-master-ericciccottis-projects.vercel.app',
+    /\.vercel\.app$/  // Accepte tous les sous-domaines vercel.app
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
