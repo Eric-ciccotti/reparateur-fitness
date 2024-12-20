@@ -12,7 +12,7 @@ interface ContactFormData {
 }
 
 // Utiliser une URL relative pour l'API
-const API_URL = '';
+const API_URL = '/api';
 
 const Contact: React.FC = () => {
   const [loading, setLoading] = useState(false);
