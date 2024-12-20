@@ -24,11 +24,12 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "dev:server": "ts-node --project server/tsconfig.json server/index.ts",
-    "dev": "concurrently \"npm run dev:server\" \"npm start\"",
-    "build": "react-scripts build",
+    "build": "react-scripts build && prisma generate",
+    "vercel-build": "prisma generate && prisma migrate deploy && react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "server": "ts-node server/index.ts",
+    "dev": "concurrently \"npm run server\" \"npm start\""
   },
   "eslintConfig": {
     "extends": [
