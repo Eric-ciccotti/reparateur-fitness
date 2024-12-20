@@ -11,7 +11,8 @@ interface ContactFormData {
   message: string;
 }
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+// Utiliser une URL relative pour l'API
+const API_URL = '';
 
 const Contact: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -40,12 +41,16 @@ const Contact: React.FC = () => {
     setError(null);
 
     try {
+      console.log('API URL:', API_URL);
       console.log('Sending booking request:', formData);
+      
       const response = await axios.post(`${API_URL}/api/bookings`, formData, {
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        withCredentials: false
       });
+      
       console.log('Booking response:', response.data);
       
       if (response.data.success && response.data.payment_url) {
@@ -55,17 +60,24 @@ const Contact: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Booking error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Une erreur est survenue. Veuillez réessayer ou nous contacter par téléphone.';
-      setError(errorMessage);
+      let errorMessage = 'Une erreur est survenue. Veuillez réessayer ou nous contacter par téléphone.';
       
-      // Log l'erreur complète pour le débogage
       if (err.response) {
         console.error('Error response:', {
           data: err.response.data,
           status: err.response.status,
           headers: err.response.headers
         });
+        errorMessage = err.response.data?.error || errorMessage;
+      } else if (err.request) {
+        console.error('Error request:', err.request);
+        errorMessage = 'Impossible de contacter le serveur. Veuillez vérifier votre connexion.';
+      } else {
+        console.error('Error message:', err.message);
+        errorMessage = err.message || errorMessage;
       }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
