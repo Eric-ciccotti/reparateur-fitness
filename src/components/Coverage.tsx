@@ -1,7 +1,14 @@
 import React from 'react';
 
-const Coverage = () => {
-  const areas = [
+interface Area {
+  region: string;
+  districts: string[];
+  response: string;
+  fee: string;
+}
+
+const Coverage = (): JSX.Element => {
+  const areas: Area[] = [
     {
       region: "Paris",
       districts: ["Paris 1er - 20e"],
@@ -27,7 +34,7 @@ const Coverage = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
+            <span className="text-blue-600">
               Zone d'Intervention
             </span>
           </h2>
@@ -47,7 +54,8 @@ const Coverage = () => {
               allowFullScreen
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-            ></iframe>
+              title="Carte des zones d'intervention en Île-de-France"
+            />
           </div>
 
           {/* Zones couvertes */}
@@ -55,12 +63,12 @@ const Coverage = () => {
             {areas.map((area, index) => (
               <div 
                 key={index}
-                className="bg-gray-50 rounded-xl p-6 shadow-lg"
+                className="bg-gray-50 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow"
               >
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
-                    <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-                      <span className="text-xl">{index + 1}</span>
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-xl text-blue-600">{index + 1}</span>
                     </div>
                   </div>
                   <div className="ml-4">
@@ -68,16 +76,28 @@ const Coverage = () => {
                     <ul className="space-y-2 text-gray-600">
                       {area.districts.map((district, idx) => (
                         <li key={idx} className="flex items-center">
-                          <svg className="w-5 h-5 text-secondary-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
+                          <svg 
+                            className="w-5 h-5 text-blue-500 mr-2" 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            viewBox="0 0 20 20" 
+                            fill="currentColor" 
+                            aria-hidden="true"
+                          >
+                            <path 
+                              fillRule="evenodd" 
+                              d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" 
+                              clipRule="evenodd"
+                            />
                           </svg>
                           {district}
                         </li>
                       ))}
                     </ul>
                     <div className="mt-3 flex items-center justify-between text-sm">
-                      <span className="text-primary-600">{area.response}</span>
-                      <span className="font-semibold">Déplacement : {area.fee}</span>
+                      <span className="text-blue-600">{area.response}</span>
+                      <span className="font-semibold bg-blue-50 px-3 py-1 rounded-full">
+                        Déplacement : {area.fee}
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -3,9 +3,21 @@ import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import { config } from './config';
 import axios from 'axios';
+import rateLimit from 'express-rate-limit';
 
 const prisma = new PrismaClient();
 const app = express();
+
+// Middlewares
+app.use(express.json());
+app.use(cors({
+  origin: config.frontend_url,
+  credentials: true
+}));
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limite chaque IP à 100 requêtes par fenêtre
+}));
 
 // Types
 interface BookingRequest {
@@ -18,145 +30,116 @@ interface BookingRequest {
   message?: string;
 }
 
-// Middleware
-app.use(cors({
-  origin: config.frontend_url,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json());
+const VALID_EQUIPMENT_TYPES = {
+  'Vélo Elliptique': 8900,
+  'Tapis de Course': 8900,
+  'Vélo d\'Appartement': 7900,
+  'Appareil de Musculation': 6900
+} as const;
 
-// Logging middleware
+type ValidEquipmentType = keyof typeof VALID_EQUIPMENT_TYPES;
+
+// Logging middleware sécurisé
 app.use((req, res, next) => {
-  console.log('Request Headers:', req.headers);
-  console.log('Request Origin:', req.headers.origin);
-  console.log(`${req.method} ${req.path}`, req.body);
+  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
   next();
 });
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
+  console.error('Error:', err.message);
   res.status(500).json({
     success: false,
-    error: err.message || 'Une erreur est survenue'
+    error: 'Une erreur est survenue'
   });
 });
+
+// Validation des données de réservation
+function validateBookingData(data: BookingRequest): { isValid: boolean; error?: string } {
+  if (!data.name?.trim() || !data.email?.trim() || !data.phone?.trim() || 
+      !data.date || !data.time || !data.equipmentType) {
+    return { isValid: false, error: 'Tous les champs obligatoires doivent être remplis' };
+  }
+
+  if (!(data.equipmentType in VALID_EQUIPMENT_TYPES)) {
+    return { isValid: false, error: 'Type d\'équipement invalide' };
+  }
+
+  const bookingDate = new Date(data.date);
+  if (isNaN(bookingDate.getTime()) || bookingDate < new Date()) {
+    return { isValid: false, error: 'Date invalide' };
+  }
+
+  const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!timeRegex.test(data.time)) {
+    return { isValid: false, error: 'Format d\'heure invalide' };
+  }
+
+  return { isValid: true };
+}
 
 // Endpoint pour créer une réservation
 app.post('/api/bookings', async (req, res) => {
   try {
-    console.log('Received booking request:', req.body);
     const bookingData: BookingRequest = req.body;
-
-    // Validation des champs obligatoires
-    if (!bookingData.name || !bookingData.email || !bookingData.phone || 
-        !bookingData.date || !bookingData.time || !bookingData.equipmentType) {
-      console.log('Missing required fields:', { bookingData });
-      throw new Error('Tous les champs obligatoires doivent être remplis');
+    const validation = validateBookingData(bookingData);
+    
+    if (!validation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.error
+      });
     }
-
-    console.log('Equipment type received:', bookingData.equipmentType);
-    console.log('Available equipment types:', {
-      'Vélo Elliptique': 8900,
-      'Tapis de Course': 8900,
-      'Vélo d\'Appartement': 7900,
-      'Appareil de Musculation': 6900
-    });
 
     // Créer la réservation
     const booking = await prisma.booking.create({
       data: {
-        name: bookingData.name,
-        email: bookingData.email,
-        phone: bookingData.phone,
+        name: bookingData.name.trim(),
+        email: bookingData.email.trim().toLowerCase(),
+        phone: bookingData.phone.trim(),
         date: new Date(bookingData.date),
         time: bookingData.time,
-        equipmentType: bookingData.equipmentType,
-        message: bookingData.message || '',
+        equipmentType: bookingData.equipmentType as ValidEquipmentType,
+        message: bookingData.message?.trim() || '',
         status: 'PENDING'
       }
     });
 
-    console.log('Booking created:', booking);
-
-    try {
-      // Créer une session de paiement PayPlug
-      const amount = getAmountByEquipmentType(bookingData.equipmentType);
-      console.log('Calculated amount:', amount);
-      console.log('PayPlug secret key length:', config.payplug.secret_key?.length || 0);
-      console.log('Backend URL:', config.backend_url);
-      console.log('Frontend URL:', config.frontend_url);
-
-      const paymentData = {
-        amount: amount * 100, // PayPlug attend le montant en centimes
-        currency: 'EUR',
-        notification_url: `${config.backend_url}/api/webhooks/payplug`,
-        hosted_payment: {
-          return_url: `${config.frontend_url}/booking/success`,
-          cancel_url: `${config.frontend_url}/booking/cancel`
-        },
-        customer: {
-          email: bookingData.email,
-          first_name: bookingData.name.split(' ')[0],
-          last_name: bookingData.name.split(' ').slice(1).join(' ') || 'Non spécifié'
-        },
-        metadata: {
-          booking_id: booking.id,
-          equipment_type: bookingData.equipmentType
-        }
-      };
-
-      console.log('Sending request to PayPlug with data:', paymentData);
-
-      const paymentResponse = await axios.post(
-        'https://api.payplug.com/v1/payments',
-        paymentData,
-        {
-          headers: {
-            'Authorization': `Bearer ${config.payplug.secret_key}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      console.log('PayPlug response:', paymentResponse.data);
-
-      // Mettre à jour la réservation avec l'ID de paiement PayPlug
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { 
-          payment_id: paymentResponse.data.id,
-          status: 'AWAITING_PAYMENT'
-        }
-      });
-
-      res.json({
-        success: true,
-        payment_url: paymentResponse.data.hosted_payment.payment_url
-      });
-    } catch (paymentError: any) {
-      console.error('PayPlug API error:', paymentError.response?.data || paymentError.message);
-      console.error('Full PayPlug error:', paymentError);
-      
-      // Mettre à jour le statut de la réservation
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { status: 'ERROR' }
-      });
-
-      res.status(500).json({
-        success: false,
-        error: 'Une erreur est survenue lors de l\'initialisation du paiement.',
+    // Créer une session de paiement PayPlug
+    const amount = VALID_EQUIPMENT_TYPES[bookingData.equipmentType as ValidEquipmentType];
+    
+    const paymentData = {
+      amount: amount * 100,
+      currency: 'EUR',
+      notification_url: `${config.backend_url}/api/webhooks/payplug`,
+      hosted_payment: {
+        return_url: `${config.frontend_url}/booking/success`,
+        cancel_url: `${config.frontend_url}/booking/cancel`
+      },
+      customer: {
+        email: bookingData.email
+      },
+      metadata: {
         booking_id: booking.id
-      });
-    }
-  } catch (error: any) {
-    console.error('Booking error:', error);
+      }
+    };
+
+    const payplugResponse = await axios.post('https://api.payplug.com/v1/payments', paymentData, {
+      headers: {
+        'Authorization': `Bearer ${config.payplug.secret_key}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    res.json({
+      success: true,
+      payment_url: payplugResponse.data.hosted_payment.payment_url
+    });
+  } catch (error) {
+    console.error('Booking error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({
       success: false,
-      error: error.message || 'Une erreur est survenue lors de la création de la réservation'
+      error: 'Une erreur est survenue lors de la création de la réservation'
     });
   }
 });
@@ -210,24 +193,6 @@ app.post('/api/webhooks/payplug', async (req, res) => {
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
-
-// Fonction utilitaire pour obtenir le montant en fonction du type d'équipement
-function getAmountByEquipmentType(type: string): number {
-  // Normaliser le type d'équipement
-  const normalizedType = type.toLowerCase();
-  const prices: Record<string, number> = {
-    'vélo elliptique': 8900,      // 89€
-    'tapis de course': 8900,      // 89€
-    'vélo d\'appartement': 7900,  // 79€
-    'appareil de musculation': 6900, // 69€
-    // Ajout des versions simplifiées
-    'velo': 7900,      // 79€
-    'tapis': 8900,     // 89€
-    'musculation': 6900 // 69€
-  };
-
-  return prices[normalizedType] || 7900; // Prix par défaut : 79€
-}
 
 // Démarrer le serveur
 const port = process.env.PORT || 3001;

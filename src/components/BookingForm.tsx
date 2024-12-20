@@ -22,6 +22,7 @@ const BookingForm: React.FC = () => {
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<boolean>(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -31,13 +32,42 @@ const BookingForm: React.FC = () => {
     }));
   };
 
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError('Le nom est requis');
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('Email invalide');
+      return false;
+    }
+    if (!/^(\+33|0)[1-9](\d{8})$/.test(formData.phone.replace(/\s/g, ''))) {
+      setError('Numéro de téléphone invalide');
+      return false;
+    }
+    const selectedDate = new Date(formData.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      setError('La date doit être future');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess(false);
+
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/bookings`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,15 +75,19 @@ const BookingForm: React.FC = () => {
         body: JSON.stringify(formData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Erreur lors de la création de la réservation');
+        throw new Error(data.error || 'Erreur lors de la création de la réservation');
       }
 
-      const { payment_url } = await response.json();
-      window.location.href = payment_url;
+      setSuccess(true);
+      setTimeout(() => {
+        window.location.href = data.payment_url;
+      }, 1500);
     } catch (error) {
       console.error('Error:', error);
-      setError('Une erreur est survenue. Veuillez réessayer.');
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
@@ -85,7 +119,7 @@ const BookingForm: React.FC = () => {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             />
           </div>
@@ -99,7 +133,7 @@ const BookingForm: React.FC = () => {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             />
           </div>
@@ -113,7 +147,8 @@ const BookingForm: React.FC = () => {
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
+              placeholder="+33 ou 0 suivi de 9 chiffres"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             />
           </div>
@@ -126,7 +161,7 @@ const BookingForm: React.FC = () => {
               name="equipmentType"
               value={formData.equipmentType}
               onChange={handleChange}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             >
               {equipmentTypes.map(type => (
@@ -144,7 +179,7 @@ const BookingForm: React.FC = () => {
               name="date"
               value={formData.date}
               onChange={handleChange}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               min={new Date().toISOString().split('T')[0]}
               required
             />
@@ -158,7 +193,7 @@ const BookingForm: React.FC = () => {
               name="time"
               value={formData.time}
               onChange={handleChange}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
             >
               <option value="">Sélectionnez un créneau</option>
@@ -176,7 +211,7 @@ const BookingForm: React.FC = () => {
               name="message"
               value={formData.message}
               onChange={handleChange}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={4}
               placeholder="Décrivez le problème rencontré..."
             />
@@ -188,12 +223,28 @@ const BookingForm: React.FC = () => {
             </div>
           )}
 
+          {success && (
+            <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg">
+              Réservation créée avec succès ! Redirection vers le paiement...
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
             disabled={loading}
           >
-            {loading ? 'Traitement en cours...' : 'Réserver maintenant'}
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Traitement en cours...
+              </span>
+            ) : (
+              'Réserver maintenant'
+            )}
           </button>
 
           <p className="text-sm text-gray-600 mt-4 text-center">

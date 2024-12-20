@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 interface ContactFormData {
@@ -15,7 +14,6 @@ interface ContactFormData {
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 const Contact: React.FC = () => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<ContactFormData>({

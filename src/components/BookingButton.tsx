@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface BookingButtonProps {
   equipmentType?: string;
@@ -12,8 +11,6 @@ const BookingButton: React.FC<BookingButtonProps> = ({
   className = '',
   text = 'Réserver maintenant'
 }) => {
-  const navigate = useNavigate();
-
   const handleClick = () => {
     const contactSection = document.getElementById('contact');
     if (contactSection) {

@@ -15,6 +15,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.1",
@@ -24,12 +25,13 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build && prisma generate",
+    "build": "prisma generate && react-scripts build",
     "vercel-build": "prisma generate && prisma migrate deploy && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "server": "ts-node server/index.ts",
-    "dev": "concurrently \"npm run server\" \"npm start\""
+    "dev": "concurrently \"npm run server\" \"npm start\"",
+    "postinstall": "prisma generate"
   },
   "eslintConfig": {
     "extends": [
@@ -51,6 +53,7 @@
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
+    "@types/express-rate-limit": "^6.0.0",
     "concurrently": "^8.2.2",
     "prisma": "^5.7.1",
     "ts-node": "^10.9.2"
