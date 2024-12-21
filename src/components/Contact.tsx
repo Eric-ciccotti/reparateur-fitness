@@ -11,6 +11,12 @@ interface ContactFormData {
   message: string;
 }
 
+interface BookingResponse {
+  success: boolean;
+  payment_url?: string;
+  error?: string;
+}
+
 // Utiliser une URL relative pour l'API
 const API_URL = '/api';
 
@@ -44,7 +50,7 @@ const Contact: React.FC = () => {
       console.log('API URL:', API_URL);
       console.log('Sending booking request:', formData);
       
-      const response = await axios.post(`${API_URL}/api/bookings`, formData, {
+      const response = await axios.post<BookingResponse>(`${API_URL}/api/bookings`, formData, {
         headers: {
           'Content-Type': 'application/json'
         },

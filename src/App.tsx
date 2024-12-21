@@ -9,6 +9,7 @@ import Testimonials from './components/Testimonials';
 import Coverage from './components/Coverage';
 import Pricing from './components/Pricing';
 import Contact from './components/Contact';
+import Footer from './components/Footer';
 
 // Pages de confirmation
 const BookingSuccess = () => (
@@ -57,16 +58,16 @@ const BookingCancel = () => (
   </div>
 );
 
-function App() {
+const App: React.FC = () => {
   return (
     <Router>
-      <Routes>
-        <Route path="/booking/success" element={<BookingSuccess />} />
-        <Route path="/booking/cancel" element={<BookingCancel />} />
-        <Route path="/" element={
-          <div className="min-h-screen bg-white">
-            <Header />
-            <main>
+      <div className="App">
+        <Header />
+        <Routes>
+          <Route path="/booking/success" element={<BookingSuccess />} />
+          <Route path="/booking/cancel" element={<BookingCancel />} />
+          <Route path="/" element={
+            <>
               <Hero />
               <Services />
               <WhyUs />
@@ -75,17 +76,13 @@ function App() {
               <Coverage />
               <Pricing />
               <Contact />
-            </main>
-            <footer className="bg-gray-900 text-white py-8">
-              <div className="container mx-auto px-4 text-center">
-                <p> 2024 Réparateur Fitness - Tous droits réservés</p>
-              </div>
-            </footer>
-          </div>
-        } />
-      </Routes>
+            </>
+          } />
+        </Routes>
+        <Footer />
+      </div>
     </Router>
   );
-}
+};
 
 export default App;
